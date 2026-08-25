@@ -175,7 +175,7 @@ fun TaskDetailSheet(
         }
         tagError = null
         viewModel.showToast(AppViewModel.ToastKind.INFO, "Hold near a tag to link it")
-        scanner.scan(NfcScanner.Mode.WRITE) { outcome ->
+        scanner.scan { outcome ->
             if (outcome.uid != null) {
                 linkedTagId = outcome.uid
                 tagError = outcome.error
@@ -408,8 +408,8 @@ fun TaskDetailSheet(
                 }
             }
             Footnote(
-                "On a writable NDEF tag, Remindy adds a link so taps can complete this task " +
-                    "while the app is closed. Android generally requires your phone to be awake and unlocked."
+                "Remindy saves this tag's identifier without changing anything stored on it. " +
+                    "Scan from inside Remindy to complete this task."
             )
 
             if (existing != null) {

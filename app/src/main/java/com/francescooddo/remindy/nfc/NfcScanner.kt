@@ -1,11 +1,7 @@
 package com.francescooddo.remindy.nfc
 
 import android.app.Activity
-import android.nfc.NdefMessage
-import android.nfc.NdefRecord
 import android.nfc.NfcAdapter
-import android.nfc.Tag
-import android.nfc.tech.Ndef
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -46,12 +42,8 @@ internal class NfcScanGate {
 }
 
 class NfcScanner(private val activity: Activity) {
-
-    enum class Mode { READ, WRITE }
-
     data class ScanOutcome(
         val uid: String?,
-        val wroteLink: Boolean,
         val error: String?
     )
 
@@ -65,24 +57,20 @@ class NfcScanner(private val activity: Activity) {
     private var completion: ((ScanOutcome) -> Unit)? = null
     private val scanGate = NfcScanGate()
 
-    private fun readerCallback(mode: Mode, scanId: Long) =
+    private fun readerCallback(scanId: Long) =
         NfcAdapter.ReaderCallback { tag ->
             if (!scanGate.claimTag(scanId)) return@ReaderCallback
             val uid = uidHex(tag.id)
-            if (mode == Mode.READ) {
-                mainHandler.post {
-                    Haptics.success(activity)
-                    finish(ScanOutcome(uid = uid, wroteLink = false, error = null), scanId)
-                }
-                return@ReaderCallback
+            mainHandler.post {
+                Haptics.success(activity)
+                finish(ScanOutcome(uid = uid, error = null), scanId)
             }
-            writeLink(tag, uid, scanId)
         }
 
-    fun scan(mode: Mode, completion: (ScanOutcome) -> Unit) {
+    fun scan(completion: (ScanOutcome) -> Unit) {
         if (!isAvailable) {
             Haptics.error(activity)
-            completion(ScanOutcome(uid = null, wroteLink = false, error = "NFC isn't available on this device."))
+            completion(ScanOutcome(uid = null, error = "NFC isn't available on this device."))
             return
         }
         val scanId = scanGate.arm() ?: return
@@ -91,14 +79,14 @@ class NfcScanner(private val activity: Activity) {
         try {
             adapter?.enableReaderMode(
                 activity,
-                readerCallback(mode, scanId),
-                readerFlags(mode),
+                readerCallback(scanId),
+                readerFlags(),
                 Bundle()
             )
         } catch (_: Exception) {
             Haptics.error(activity)
             finish(
-                ScanOutcome(uid = null, wroteLink = false, error = "Couldn't start NFC scanning."),
+                ScanOutcome(uid = null, error = "Couldn't start NFC scanning."),
                 scanId
             )
         }
@@ -130,7 +118,7 @@ class NfcScanner(private val activity: Activity) {
         completion = null
         disableReaderMode()
         setScanning(false)
-        callback?.invoke(outcome ?: ScanOutcome(uid = null, wroteLink = false, error = null))
+        callback?.invoke(outcome ?: ScanOutcome(uid = null, error = null))
     }
 
     private fun setScanning(value: Boolean) {
@@ -138,62 +126,14 @@ class NfcScanner(private val activity: Activity) {
         onScanningChanged?.invoke(value)
     }
 
-    private fun deliver(outcome: ScanOutcome, scanId: Long) {
-        mainHandler.post { finish(outcome, scanId) }
-    }
-
-    private fun writeLink(tag: Tag, uid: String, scanId: Long) {
-        val ndef = Ndef.get(tag)
-        if (ndef == null) {
-            Haptics.error(activity)
-            deliver(
-                ScanOutcome(
-                    uid = uid,
-                    wroteLink = false,
-                    error = "This tag can't store links, so background taps won't work. It's still linked for in-app scans."
-                ),
-                scanId
-            )
-            return
-        }
-        val outcome = try {
-            ndef.use { connection ->
-                connection.connect()
-                if (!connection.isWritable) {
-                    ScanOutcome(
-                        uid = uid,
-                        wroteLink = false,
-                        error = "This tag is read-only, so background taps won't work. It's still linked for in-app scans."
-                    )
-                } else {
-                    val record = NdefRecord.createUri("remindy://t/$uid")
-                    connection.writeNdefMessage(NdefMessage(record))
-                    ScanOutcome(uid = uid, wroteLink = true, error = null)
-                }
-            }
-        } catch (_: Exception) {
-            ScanOutcome(uid = uid, wroteLink = false, error = "Writing to the tag failed.")
-        }
-        if (outcome.error == null) {
-            Haptics.success(activity)
-        } else {
-            Haptics.error(activity)
-        }
-        deliver(outcome, scanId)
-    }
-
     companion object {
-        internal fun readerFlags(mode: Mode): Int {
+        internal fun readerFlags(): Int {
             val pollingFlags = NfcAdapter.FLAG_READER_NFC_A or
                 NfcAdapter.FLAG_READER_NFC_B or
                 NfcAdapter.FLAG_READER_NFC_F or
                 NfcAdapter.FLAG_READER_NFC_V
 
-            return if (mode == Mode.READ) {
-                pollingFlags or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK
-            } else {
-                pollingFlags
-            }
+            return pollingFlags or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK
         }
 
         fun uidHex(data: ByteArray): String =

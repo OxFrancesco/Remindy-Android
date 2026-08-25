@@ -4,12 +4,12 @@ Kotlin/Jetpack Compose port of the iOS [Remindy](../Remindy) app — a super-min
 local-first reminder app driven by NFC tags and places.
 
 - **Local-first**: all data stored on-device via Room. No network, no accounts.
-- **NFC-driven**: link a compatible, writable NDEF tag (such as many MIFARE/NTAG
-  stickers) to a reminder. The
-  app writes a `remindy://t/<uid>` URI record onto the tag.
-- Tap your phone on a linked tag → the reminder completes, haptic fires, toast shows.
-  When the screen is awake and unlocked, background taps launch the app via
-  `NDEF_DISCOVERED`, even if Remindy was closed.
+- **NFC-driven**: link a tag without changing its existing data. Remindy stores the
+  tag's hardware UID and consumes scans while its NFC reader is open, so the tag's
+  normal action does not run during an in-app scan.
+- Scan a linked tag from inside Remindy to complete its reminder. Tags written by older
+  Remindy builds can still launch the app through their existing `remindy://t/<uid>`
+  record.
 - **Place reminders**: native `LocationManager` proximity alerts (entry/exit,
   50–500 m radius, max 20 regions) with high-priority notifications even when the
   app is closed.
@@ -24,8 +24,8 @@ local-first reminder app driven by NFC tags and places.
 | Recurrence none/daily/weekly/monthly | Same, wall-clock-safe via `java.time` |
 | Logger mode ("Auto-Reset After Log") | Same |
 | CoreNFC reader session | `NfcAdapter.enableReaderMode` (A/B/F polling) |
-| NDEF URI write + read-only handling | `Ndef.writeNdefMessage` with same error messages |
-| `remindy://t/` URL scheme | Deep link + `NDEF_DISCOVERED` intent filters |
+| UID-only NFC linking | `NfcAdapter` reader mode with NDEF dispatch suppressed |
+| Legacy `remindy://t/` URL scheme | Deep link + `NDEF_DISCOVERED` intent filters |
 | CLCircularRegion monitoring (max 20) | `LocationManager.addProximityAlert` (max 20) |
 | Time-sensitive notifications | High-importance channel + `CATEGORY_REMINDER` |
 | MapKit place picker w/ search & reverse geocoding | osmdroid (OpenStreetMap) + `Geocoder` search/reverse geocoding |
@@ -35,7 +35,7 @@ local-first reminder app driven by NFC tags and places.
 
 - Android Studio (current) or JDK 17+
 - Android SDK platform 36, build-tools 36.0.0 (`sdkmanager` handles this)
-- A **physical device** for NFC reading/writing (emulators have no NFC)
+- A **physical device** for NFC reading (emulators have no NFC)
 
 ## Setup
 
@@ -72,7 +72,7 @@ app/src/main/java/com/francescooddo/remindy/
 ├── Graph.kt                 # tiny object graph (db + geofence store)
 ├── data/                    # Room entity, DAO, database, converters
 ├── domain/                  # Recurrence, PlaceTrigger, completion logic ports
-├── nfc/                     # NfcScanner (reader mode + NDEF write), Haptics
+├── nfc/                     # NfcScanner (UID-only reader mode), Haptics
 ├── location/                # ProximityStore (LocationManager alerts), ProximityReceiver
 ├── notifications/           # channel + place-alarm notifications
 └── ui/

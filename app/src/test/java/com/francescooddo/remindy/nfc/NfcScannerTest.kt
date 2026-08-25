@@ -35,15 +35,8 @@ class NfcScannerTest {
     }
 
     @Test
-    fun `write scans allow Android to enumerate NDEF`() {
-        val flags = NfcScanner.readerFlags(NfcScanner.Mode.WRITE)
-
-        assertEquals(0, flags and NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK)
-    }
-
-    @Test
-    fun `read scans skip NDEF enumeration`() {
-        val flags = NfcScanner.readerFlags(NfcScanner.Mode.READ)
+    fun `in-app scans consume the tag without enumerating NDEF`() {
+        val flags = NfcScanner.readerFlags()
 
         assertEquals(
             NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK,
