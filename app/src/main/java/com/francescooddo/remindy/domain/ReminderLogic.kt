@@ -21,6 +21,13 @@ fun ReminderEntity.isCurrentlyDone(now: Long = System.currentTimeMillis()): Bool
 val ReminderEntity.lastLogged: Long?
     get() = log.lastOrNull()
 
+fun ReminderEntity.removeLogEntry(epochMillis: Long): Boolean {
+    val index = log.indexOf(epochMillis)
+    if (index == -1) return false
+    log = log.toMutableList().also { it.removeAt(index) }
+    return true
+}
+
 fun ReminderEntity.isOverdue(now: Long = System.currentTimeMillis()): Boolean {
     if (isCurrentlyDone(now)) return false
     val due = dueDate ?: return false

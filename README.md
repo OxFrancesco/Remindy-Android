@@ -4,12 +4,10 @@ Kotlin/Jetpack Compose port of the iOS [Remindy](../Remindy) app — a super-min
 local-first reminder app driven by NFC tags and places.
 
 - **Local-first**: all data stored on-device via Room. No network, no accounts.
-- **NFC-driven**: link a tag without changing its existing data. Remindy stores the
-  tag's hardware UID and consumes scans while its NFC reader is open, so the tag's
-  normal action does not run during an in-app scan.
-- Scan a linked tag from inside Remindy to complete its reminder. Tags written by older
-  Remindy builds can still launch the app through their existing `remindy://t/<uid>`
-  record.
+- **NFC-driven**: after an explicit overwrite warning, Remindy replaces the tag's NDEF
+  contents with a `remindy://t/<uid>` link tied to the reminder.
+- Tap a linked tag to open Remindy and complete its reminder, or scan it from the NFC
+  button inside the app.
 - **Place reminders**: native `LocationManager` proximity alerts (entry/exit,
   50–500 m radius, max 20 regions) with high-priority notifications even when the
   app is closed.
@@ -24,7 +22,7 @@ local-first reminder app driven by NFC tags and places.
 | Recurrence none/daily/weekly/monthly | Same, wall-clock-safe via `java.time` |
 | Logger mode ("Auto-Reset After Log") | Same |
 | CoreNFC reader session | `NfcAdapter.enableReaderMode` (A/B/F polling) |
-| UID-only NFC linking | `NfcAdapter` reader mode with NDEF dispatch suppressed |
+| NFC link writing | `NfcAdapter` reader mode + NDEF overwrite/formatting |
 | Legacy `remindy://t/` URL scheme | Deep link + `NDEF_DISCOVERED` intent filters |
 | CLCircularRegion monitoring (max 20) | `LocationManager.addProximityAlert` (max 20) |
 | Time-sensitive notifications | High-importance channel + `CATEGORY_REMINDER` |
@@ -58,7 +56,7 @@ Or open the folder in Android Studio and press Run.
 
 ## Usage
 
-1. `+` → name the reminder → optionally *Link NFC Tag* → Add.
+1. `+` → name the reminder → optionally *Link NFC Tag* → confirm overwrite → Add.
 2. NFC icon (top-left) → hold phone near any linked tag → matching reminder completes.
 3. Tapping an unlinked tag offers nothing special in-app; link tags from the edit sheet.
 4. Checkmark toggles today manually; swipe left to delete; long-press for
@@ -72,7 +70,7 @@ app/src/main/java/com/francescooddo/remindy/
 ├── Graph.kt                 # tiny object graph (db + geofence store)
 ├── data/                    # Room entity, DAO, database, converters
 ├── domain/                  # Recurrence, PlaceTrigger, completion logic ports
-├── nfc/                     # NfcScanner (UID-only reader mode), Haptics
+├── nfc/                     # NfcScanner (UID reads + NDEF link writes), Haptics
 ├── location/                # ProximityStore (LocationManager alerts), ProximityReceiver
 ├── notifications/           # channel + place-alarm notifications
 └── ui/

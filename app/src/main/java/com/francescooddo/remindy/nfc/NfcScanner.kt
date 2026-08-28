@@ -1,7 +1,12 @@
 package com.francescooddo.remindy.nfc
 
 import android.app.Activity
+import android.nfc.NdefMessage
+import android.nfc.NdefRecord
 import android.nfc.NfcAdapter
+import android.nfc.Tag
+import android.nfc.tech.Ndef
+import android.nfc.tech.NdefFormatable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -42,10 +47,16 @@ internal class NfcScanGate {
 }
 
 class NfcScanner(private val activity: Activity) {
+    enum class Mode { READ, WRITE }
+
     data class ScanOutcome(
         val uid: String?,
+        val wroteLink: Boolean,
         val error: String?
-    )
+    ) {
+        val linkedUid: String?
+            get() = uid?.takeIf { wroteLink && error == null }
+    }
 
     var isScanning: Boolean = false
         private set
@@ -57,20 +68,30 @@ class NfcScanner(private val activity: Activity) {
     private var completion: ((ScanOutcome) -> Unit)? = null
     private val scanGate = NfcScanGate()
 
-    private fun readerCallback(scanId: Long) =
+    private fun readerCallback(mode: Mode, scanId: Long) =
         NfcAdapter.ReaderCallback { tag ->
             if (!scanGate.claimTag(scanId)) return@ReaderCallback
             val uid = uidHex(tag.id)
+            if (mode == Mode.WRITE) {
+                writeLink(tag, uid, scanId)
+                return@ReaderCallback
+            }
             mainHandler.post {
                 Haptics.success(activity)
-                finish(ScanOutcome(uid = uid, error = null), scanId)
+                finish(ScanOutcome(uid = uid, wroteLink = false, error = null), scanId)
             }
         }
 
-    fun scan(completion: (ScanOutcome) -> Unit) {
+    fun scan(mode: Mode, completion: (ScanOutcome) -> Unit) {
         if (!isAvailable) {
             Haptics.error(activity)
-            completion(ScanOutcome(uid = null, error = "NFC isn't available on this device."))
+            completion(
+                ScanOutcome(
+                    uid = null,
+                    wroteLink = false,
+                    error = "NFC isn't available on this device."
+                )
+            )
             return
         }
         val scanId = scanGate.arm() ?: return
@@ -79,14 +100,18 @@ class NfcScanner(private val activity: Activity) {
         try {
             adapter?.enableReaderMode(
                 activity,
-                readerCallback(scanId),
-                readerFlags(),
+                readerCallback(mode, scanId),
+                readerFlags(mode),
                 Bundle()
             )
         } catch (_: Exception) {
             Haptics.error(activity)
             finish(
-                ScanOutcome(uid = null, error = "Couldn't start NFC scanning."),
+                ScanOutcome(
+                    uid = null,
+                    wroteLink = false,
+                    error = "Couldn't start NFC scanning."
+                ),
                 scanId
             )
         }
@@ -118,7 +143,9 @@ class NfcScanner(private val activity: Activity) {
         completion = null
         disableReaderMode()
         setScanning(false)
-        callback?.invoke(outcome ?: ScanOutcome(uid = null, error = null))
+        callback?.invoke(
+            outcome ?: ScanOutcome(uid = null, wroteLink = false, error = null)
+        )
     }
 
     private fun setScanning(value: Boolean) {
@@ -126,15 +153,85 @@ class NfcScanner(private val activity: Activity) {
         onScanningChanged?.invoke(value)
     }
 
+    private fun deliver(outcome: ScanOutcome, scanId: Long) {
+        mainHandler.post { finish(outcome, scanId) }
+    }
+
+    private fun writeLink(tag: Tag, uid: String, scanId: Long) {
+        val message = NdefMessage(NdefRecord.createUri(linkUri(uid)))
+        val outcome = when (val ndef = Ndef.get(tag)) {
+            null -> formatTag(tag, uid, message)
+            else -> overwriteTag(ndef, uid, message)
+        }
+
+        if (outcome.wroteLink) {
+            Haptics.success(activity)
+        } else {
+            Haptics.error(activity)
+        }
+        deliver(outcome, scanId)
+    }
+
+    private fun overwriteTag(
+        ndef: Ndef,
+        uid: String,
+        message: NdefMessage
+    ): ScanOutcome = try {
+        ndef.use { connection ->
+            connection.connect()
+            when {
+                !connection.isWritable -> writeFailure(uid, "This NFC tag is read-only.")
+                message.toByteArray().size > connection.maxSize ->
+                    writeFailure(uid, "This NFC tag doesn't have enough space.")
+                else -> {
+                    connection.writeNdefMessage(message)
+                    writeSuccess(uid)
+                }
+            }
+        }
+    } catch (_: Exception) {
+        writeFailure(uid, "Writing to the NFC tag failed. Keep the tag still and try again.")
+    }
+
+    private fun formatTag(
+        tag: Tag,
+        uid: String,
+        message: NdefMessage
+    ): ScanOutcome {
+        val formatable = NdefFormatable.get(tag)
+            ?: return writeFailure(uid, "This NFC tag can't store a Remindy link.")
+        return try {
+            formatable.use { connection ->
+                connection.connect()
+                connection.format(message)
+            }
+            writeSuccess(uid)
+        } catch (_: Exception) {
+            writeFailure(uid, "Writing to the NFC tag failed. Keep the tag still and try again.")
+        }
+    }
+
+    private fun writeSuccess(uid: String) =
+        ScanOutcome(uid = uid, wroteLink = true, error = null)
+
+    private fun writeFailure(uid: String, error: String) =
+        ScanOutcome(uid = uid, wroteLink = false, error = error)
+
     companion object {
-        internal fun readerFlags(): Int {
+        internal fun readerFlags(mode: Mode): Int {
             val pollingFlags = NfcAdapter.FLAG_READER_NFC_A or
                 NfcAdapter.FLAG_READER_NFC_B or
                 NfcAdapter.FLAG_READER_NFC_F or
                 NfcAdapter.FLAG_READER_NFC_V
 
-            return pollingFlags or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK
+            return if (mode == Mode.READ) {
+                pollingFlags or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK
+            } else {
+                pollingFlags
+            }
         }
+
+        internal fun linkUri(uid: String): String = "remindy://t/$uid"
 
         fun uidHex(data: ByteArray): String =
             data.joinToString("") { "%02X".format(it) }

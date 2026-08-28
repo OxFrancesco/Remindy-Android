@@ -136,6 +136,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateLinkedTag(task: ReminderEntity, tagId: String?) {
+        task.tagId = tagId
+        persist(task)
+    }
+
     fun toggleArchive(task: ReminderEntity) {
         val context = getApplication<Application>()
         task.isArchived = !task.isArchived

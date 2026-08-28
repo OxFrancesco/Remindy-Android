@@ -70,7 +70,6 @@ import com.francescooddo.remindy.domain.PlaceTrigger
 import com.francescooddo.remindy.domain.Recurrence
 import com.francescooddo.remindy.domain.hasPlace
 import com.francescooddo.remindy.domain.isCurrentlyDone
-import com.francescooddo.remindy.nfc.Haptics
 import com.francescooddo.remindy.nfc.NfcScanner
 import com.francescooddo.remindy.ui.AppViewModel
 import com.francescooddo.remindy.ui.ReminderDraft
@@ -116,6 +115,8 @@ fun TaskDetailSheet(
     var showPlacePicker by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+    var showTagOverwriteConfirmation by rememberSaveable { mutableStateOf(false) }
+    var showDeleteConfirmation by rememberSaveable { mutableStateOf(false) }
     var recurrenceMenuOpen by remember { mutableStateOf(false) }
     var triggerMenuOpen by remember { mutableStateOf(false) }
 
@@ -174,15 +175,19 @@ fun TaskDetailSheet(
             return
         }
         tagError = null
-        viewModel.showToast(AppViewModel.ToastKind.INFO, "Hold near a tag to link it")
-        scanner.scan { outcome ->
-            if (outcome.uid != null) {
-                linkedTagId = outcome.uid
-                tagError = outcome.error
-                Haptics.success(context)
-            } else if (outcome.error != null) {
-                tagError = outcome.error
-                Haptics.error(context)
+        viewModel.showToast(AppViewModel.ToastKind.INFO, "Hold near the tag to overwrite it")
+        scanner.scan(NfcScanner.Mode.WRITE) { outcome ->
+            val result = TaskTagLinkWorkflow.applyWrite(
+                currentTagId = linkedTagId,
+                outcome = outcome,
+                persist = { tagId ->
+                    existing?.let { viewModel.updateLinkedTag(it, tagId) }
+                }
+            )
+            linkedTagId = result.linkedTagId
+            tagError = result.error
+            if (outcome.linkedUid != null) {
+                viewModel.showToast(AppViewModel.ToastKind.DONE, "NFC tag linked")
             }
         }
     }
@@ -213,6 +218,13 @@ fun TaskDetailSheet(
                 )
                 Spacer(Modifier.weight(1f))
                 if (existing != null) {
+                    IconButton(onClick = { showDeleteConfirmation = true }) {
+                        Icon(
+                            Icons.Filled.Delete,
+                            contentDescription = "Delete Reminder",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                     TextButton(
                         onClick = {
                             viewModel.updateReminder(existing, draft())
@@ -371,25 +383,67 @@ fun TaskDetailSheet(
 
             SectionHeader("NFC Tag")
             val linked = linkedTagId
-            if (linked != null) {
+            if (showTagOverwriteConfirmation) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.WarningAmber,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Overwrite NFC Tag?", fontWeight = FontWeight.SemiBold)
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Everything currently stored on the next tag will be permanently " +
+                        "overwritten with a Remindy link.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { showTagOverwriteConfirmation = false }) {
+                        Text("Cancel")
+                    }
+                    Button(
+                        onClick = {
+                            showTagOverwriteConfirmation = false
+                            scanTag()
+                        }
+                    ) {
+                        Text("Overwrite and Scan")
+                    }
+                }
+            } else if (nfcScanning) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    NfcPulsingIcon(active = true)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Hold the new tag near the phone until it vibrates")
+                }
+                TextButton(onClick = { scanner.disable() }) {
+                    Text("Cancel Scan")
+                }
+            } else if (linked != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.Nfc, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(12.dp))
                     Text("Tag ${linked.take(6)}\u2026")
                 }
-                TextButton(onClick = { scanTag() }) {
+                TextButton(onClick = { showTagOverwriteConfirmation = true }) {
                     Icon(Icons.Filled.Sync, contentDescription = null, Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
                     Text("Relink a Different Tag")
                 }
                 TextButton(onClick = {
-                    linkedTagId = null
-                    tagError = null
+                    val result = TaskTagLinkWorkflow.unlink { tagId ->
+                        existing?.let { viewModel.updateLinkedTag(it, tagId) }
+                    }
+                    linkedTagId = result.linkedTagId
+                    tagError = result.error
+                    viewModel.showToast(AppViewModel.ToastKind.DONE, "NFC tag unlinked")
                 }) {
                     Text("Unlink", color = MaterialTheme.colorScheme.error)
                 }
             } else {
-                TextButton(onClick = { scanTag() }) {
+                TextButton(onClick = { showTagOverwriteConfirmation = true }) {
                     NfcPulsingIcon(active = nfcScanning)
                     Spacer(Modifier.width(8.dp))
                     Text("Link NFC Tag")
@@ -408,8 +462,7 @@ fun TaskDetailSheet(
                 }
             }
             Footnote(
-                "Remindy saves this tag's identifier without changing anything stored on it. " +
-                    "Scan from inside Remindy to complete this task."
+                "Remindy writes a link to the tag so a tap can open the app and complete this task."
             )
 
             if (existing != null) {
@@ -428,9 +481,7 @@ fun TaskDetailSheet(
                     Text(if (existing.isArchived) "Unarchive" else "Archive")
                 }
                 TextButton(onClick = {
-                    viewModel.deleteTask(existing)
-                    scanner.disable()
-                    onDismiss()
+                    showDeleteConfirmation = true
                 }) {
                     Icon(
                         Icons.Filled.Delete,
@@ -443,6 +494,46 @@ fun TaskDetailSheet(
                 }
             }
         }
+    }
+
+    if (showDeleteConfirmation) {
+        val reminder = existing
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            icon = {
+                Icon(
+                    Icons.Filled.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("Delete Reminder?") },
+            text = {
+                Text(
+                    "Delete \"${reminder?.title.orEmpty()}\" and its subtasks? " +
+                        "This can't be undone."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirmation = false
+                        if (reminder != null) {
+                            viewModel.deleteTask(reminder)
+                            scanner.disable()
+                            onDismiss()
+                        }
+                    }
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     if (showPlacePicker) {

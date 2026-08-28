@@ -35,12 +35,44 @@ class NfcScannerTest {
     }
 
     @Test
-    fun `in-app scans consume the tag without enumerating NDEF`() {
-        val flags = NfcScanner.readerFlags()
+    fun `read scans consume the tag without enumerating NDEF`() {
+        val flags = NfcScanner.readerFlags(NfcScanner.Mode.READ)
 
         assertEquals(
             NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK,
             flags and NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK
         )
+    }
+
+    @Test
+    fun `link scans enumerate NDEF so the tag can be overwritten`() {
+        val flags = NfcScanner.readerFlags(NfcScanner.Mode.WRITE)
+
+        assertEquals(
+            0,
+            flags and NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK
+        )
+    }
+
+    @Test
+    fun `written tag opens the linked reminder`() {
+        assertEquals("remindy://t/04A1B2C3", NfcScanner.linkUri("04A1B2C3"))
+    }
+
+    @Test
+    fun `tag is only shown as linked after a successful write`() {
+        val failedWrite = NfcScanner.ScanOutcome(
+            uid = "04A1B2C3",
+            wroteLink = false,
+            error = "Writing failed"
+        )
+        val successfulWrite = NfcScanner.ScanOutcome(
+            uid = "04A1B2C3",
+            wroteLink = true,
+            error = null
+        )
+
+        assertEquals(null, failedWrite.linkedUid)
+        assertEquals("04A1B2C3", successfulWrite.linkedUid)
     }
 }

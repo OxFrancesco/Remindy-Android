@@ -114,7 +114,7 @@ fun TasksScreen(viewModel: AppViewModel) {
             return
         }
         viewModel.showToast(AppViewModel.ToastKind.INFO, "Hold near your tag")
-        scanner.scan { outcome ->
+        scanner.scan(NfcScanner.Mode.READ) { outcome ->
             val error = outcome.error
             if (error != null) {
                 viewModel.showToast(AppViewModel.ToastKind.ERROR, error)
