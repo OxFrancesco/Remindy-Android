@@ -6,7 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import com.francescooddo.remindy.ui.AppViewModel
-import com.francescooddo.remindy.ui.tasks.TasksScreen
+import com.francescooddo.remindy.ui.loading.RemindyLoadingGate
 import com.francescooddo.remindy.ui.theme.RemindyTheme
 
 class MainActivity : ComponentActivity() {
@@ -18,7 +18,7 @@ class MainActivity : ComponentActivity() {
         handleDeepLink(intent)
         setContent {
             RemindyTheme {
-                TasksScreen(viewModel)
+                RemindyLoadingGate(viewModel)
             }
         }
     }
