@@ -11,6 +11,7 @@
         android:required="false" />
 
     <application
+        android:name=".RemindyWearApp"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="Remindy"
@@ -47,5 +48,46 @@
                 <data android:scheme="remindy" android:host="t" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".reminders.WearReminderDataService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data
+                    android:host="*"
+                    android:path="/remindy/reminders/v1"
+                    android:scheme="wear" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".surfaces.RemindyTileService"
+            android:description="@string/tile_description"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/tile_label"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".surfaces.ReminderComplicationService"
+            android:exported="true"
+            android:icon="@drawable/ic_launcher_foreground"
+            android:label="@string/complication_label"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SHORT_TEXT" />
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="0" />
+        </service>
     </application>
 </manifest>

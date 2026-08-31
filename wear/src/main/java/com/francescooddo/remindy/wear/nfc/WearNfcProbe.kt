@@ -117,12 +117,7 @@ internal class WearNfcProbe private constructor(
 
     override fun onResume(owner: LifecycleOwner) {
         foreground = true
-        val observation = mutableState.value.lastObservation
-        if (observation == null) {
-            requestScan()
-        } else {
-            mutableState.value = mutableState.value.copy(scan = ScanPhase.Read(observation))
-        }
+        requestScan()
     }
 
     override fun onPause(owner: LifecycleOwner) {

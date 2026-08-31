@@ -11,6 +11,9 @@ osmdroid = "6.1.20"
 wearCompose = "1.6.1"
 hiddenApiBypass = "6.1"
 playServicesWearable = "20.0.1"
+wearTiles = "1.6.2"
+wearProtoLayout = "1.4.2"
+wearWatchface = "1.2.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -33,6 +36,9 @@ wear-compose-foundation = { group = "androidx.wear.compose", name = "compose-fou
 wear-compose-material3 = { group = "androidx.wear.compose", name = "compose-material3", version.ref = "wearCompose" }
 hidden-api-bypass = { group = "org.lsposed.hiddenapibypass", name = "hiddenapibypass", version.ref = "hiddenApiBypass" }
 play-services-wearable = { group = "com.google.android.gms", name = "play-services-wearable", version.ref = "playServicesWearable" }
+wear-tiles = { group = "androidx.wear.tiles", name = "tiles", version.ref = "wearTiles" }
+wear-protolayout-material3 = { group = "androidx.wear.protolayout", name = "protolayout-material3", version.ref = "wearProtoLayout" }
+wear-watchface-complications-data-source-ktx = { group = "androidx.wear.watchface", name = "watchface-complications-data-source-ktx", version.ref = "wearWatchface" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

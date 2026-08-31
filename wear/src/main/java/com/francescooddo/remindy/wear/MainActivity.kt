@@ -5,11 +5,15 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.MaterialTheme
 import com.francescooddo.remindy.wear.nfc.WearNfcProbe
-import com.francescooddo.remindy.wear.ui.NfcProbeScreen
+import com.francescooddo.remindy.wear.reminders.ReminderSurfaceContent
+import com.francescooddo.remindy.wear.reminders.WearReminderGraph
+import com.francescooddo.remindy.wear.reminders.WearReminderSync
+import com.francescooddo.remindy.wear.ui.ReminderListScreen
 
 class MainActivity : ComponentActivity() {
     private lateinit var probe: WearNfcProbe
@@ -18,15 +22,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         probe = WearNfcProbe.attach(this)
         handleTagIntent(intent)
+        WearReminderSync.refresh(this, lifecycleScope)
 
         setContent {
-            val state by probe.state.collectAsStateWithLifecycle()
+            val reminders by WearReminderGraph.repository.reminders.collectAsStateWithLifecycle()
             MaterialTheme {
                 AppScaffold {
-                    NfcProbeScreen(
-                        state = state,
-                        onScanAgain = probe::requestScan,
-                    )
+                    ReminderListScreen(ReminderSurfaceContent.from(reminders).appReminders)
                 }
             }
         }

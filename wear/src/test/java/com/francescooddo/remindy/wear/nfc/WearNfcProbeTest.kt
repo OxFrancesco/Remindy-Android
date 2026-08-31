@@ -84,6 +84,24 @@ class WearNfcProbeTest {
         assertIs<ScanPhase.Paused>(probe.state.value.scan)
     }
 
+    @Test
+    fun `returning to the app rearms NFC after the previous scan`() {
+        val gateway = FakeGateway(featureAdvertised = true, adapter = AdapterAvailability.Enabled)
+        val probe = WearNfcProbe.createForTest(
+            platform = gateway,
+            operationIds = FixedOperationIds(),
+            mainThread = MainThread { it() },
+        )
+        probe.onResume(TestLifecycleOwner)
+        gateway.deliver(byteArrayOf(0x01))
+
+        probe.onPause(TestLifecycleOwner)
+        probe.onResume(TestLifecycleOwner)
+
+        assertEquals(2, gateway.enableCalls)
+        assertIs<ScanPhase.Listening>(probe.state.value.scan)
+    }
+
     private object TestLifecycleOwner : LifecycleOwner {
         override val lifecycle: Lifecycle
             get() = error("The probe callbacks do not inspect the owner lifecycle")
