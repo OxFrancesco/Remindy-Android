@@ -12,3 +12,6 @@ artifacts/
 *.aab
 *.keystore
 !debug.keystore
+
+# codeview reference codebases
+resources/
