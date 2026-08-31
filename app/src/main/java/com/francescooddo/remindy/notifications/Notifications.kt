@@ -16,6 +16,7 @@ import com.francescooddo.remindy.R
 object Notifications {
 
     const val CHANNEL_ALARMS = "place_alarms"
+    const val CHANNEL_TAG_COMPLETIONS = "tag_completions"
 
     fun ensureChannels(context: Context) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -28,6 +29,15 @@ object Notifications {
             enableVibration(true)
         }
         manager.createNotificationChannel(alarms)
+        val tagCompletions = NotificationChannel(
+            CHANNEL_TAG_COMPLETIONS,
+            "NFC completions",
+            NotificationManager.IMPORTANCE_DEFAULT
+        ).apply {
+            description = "Confirms reminders completed from your watch"
+            enableVibration(true)
+        }
+        manager.createNotificationChannel(tagCompletions)
     }
 
     fun canPost(context: Context): Boolean {
@@ -71,6 +81,30 @@ object Notifications {
             .build()
         try {
             NotificationManagerCompat.from(context).notify((System.currentTimeMillis() and 0xFFFF).toInt(), notification)
+        } catch (_: SecurityException) {
+        }
+    }
+
+    fun postTagCompletion(context: Context, title: String, message: String) {
+        if (!canPost(context)) return
+        val openIntent = PendingIntent.getActivity(
+            context,
+            1,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(context, CHANNEL_TAG_COMPLETIONS)
+            .setSmallIcon(R.drawable.ic_stat_checkmark)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setContentIntent(openIntent)
+            .setAutoCancel(true)
+            .build()
+        try {
+            NotificationManagerCompat.from(context)
+                .notify((System.currentTimeMillis() and 0xFFFF).toInt(), notification)
         } catch (_: SecurityException) {
         }
     }

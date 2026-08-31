@@ -1,5 +1,6 @@
 package com.francescooddo.remindy.wear.nfc
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.pm.PackageManager
 import android.nfc.NfcAdapter
@@ -84,6 +85,7 @@ private object HiddenReaderMode {
         )
     }
 
+    @SuppressLint("SoonBlockedPrivateApi")
     private fun invoke(
         adapter: NfcAdapter,
         methodName: String,

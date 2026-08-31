@@ -48,6 +48,18 @@
         <receiver
             android:name=".location.ProximityReceiver"
             android:exported="false" />
+
+        <service
+            android:name=".wear.WearTagCompletionService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+                <data
+                    android:host="*"
+                    android:path="/remindy/tag-completion/v1"
+                    android:scheme="wear" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

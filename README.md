@@ -11,8 +11,9 @@ local-first reminder app driven by NFC tags and places.
 - **Place reminders**: native `LocationManager` proximity alerts (entry/exit,
   50–500 m radius, max 20 regions) with high-priority notifications even when the
   app is closed.
-- **No Google Play Services required** — geolocation uses the framework
-  `LocationManager`, and the place picker uses OpenStreetMap via osmdroid.
+- **Local phone features stay framework-native** — geolocation uses `LocationManager`
+  and the place picker uses OpenStreetMap via osmdroid. The optional Wear companion
+  uses Google Play services Data Layer to send scanned tag IDs to the paired phone.
 
 ## Feature parity with iOS
 
@@ -58,8 +59,9 @@ Or open the folder in Android Studio and press Run.
 
 1. `+` → name the reminder → optionally *Link NFC Tag* → confirm overwrite → Add.
 2. NFC icon (top-left) → hold phone near any linked tag → matching reminder completes.
-3. Tapping an unlinked tag offers nothing special in-app; link tags from the edit sheet.
-4. Checkmark toggles today manually; swipe left to delete; long-press for
+3. On the Wear companion, scan the same tag to complete the phone's matching reminder.
+4. Tapping an unlinked tag offers nothing special in-app; link tags from the edit sheet.
+5. Checkmark toggles today manually; swipe left to delete; long-press for
    Edit / Complete / Archive / Delete.
 
 ## Structure

@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 rootProject.name = "Remindy"
 include(":app")
 include(":wear")
+include(":wear-protocol")

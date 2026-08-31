@@ -1,5 +1,6 @@
 package com.francescooddo.remindy.wear
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,6 +17,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         probe = WearNfcProbe.attach(this)
+        handleTagIntent(intent)
 
         setContent {
             val state by probe.state.collectAsStateWithLifecycle()
@@ -28,5 +30,17 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleTagIntent(intent)
+    }
+
+    private fun handleTagIntent(intent: Intent?) {
+        val uri = intent?.data ?: return
+        if (uri.scheme != "remindy" || uri.host != "t") return
+        uri.lastPathSegment?.let(probe::acceptDiscoveredUid)
     }
 }

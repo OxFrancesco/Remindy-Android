@@ -7,6 +7,13 @@ internal value class TagUid private constructor(val value: String) {
             if (bytes.isEmpty()) return null
             return TagUid(bytes.joinToString(separator = "") { byte -> "%02X".format(byte.toInt() and 0xFF) })
         }
+
+        fun fromHex(value: String): TagUid? {
+            val normalized = value.uppercase()
+            if (normalized.length !in 2..64 || normalized.length % 2 != 0) return null
+            if (!normalized.all { character -> character in '0'..'9' || character in 'A'..'F' }) return null
+            return TagUid(normalized)
+        }
     }
 }
 

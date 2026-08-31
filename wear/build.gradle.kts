@@ -10,10 +10,10 @@ android {
 
     defaultConfig {
         applicationId = "com.francescooddo.remindy"
-        minSdk = 26
+        minSdk = 28
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0-watch-probe"
+        versionCode = 2
+        versionName = "1.1-watch"
     }
 
     buildTypes {
@@ -37,6 +37,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":wear-protocol"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -47,6 +48,7 @@ dependencies {
     implementation(libs.wear.compose.foundation)
     implementation(libs.wear.compose.material3)
     implementation(libs.hidden.api.bypass)
+    implementation(libs.play.services.wearable)
 
     testImplementation(kotlin("test"))
     debugImplementation(libs.androidx.compose.ui.tooling)
