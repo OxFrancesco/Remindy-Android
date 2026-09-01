@@ -165,6 +165,7 @@ class NfcScanner(private val activity: Activity) {
         }
 
         if (outcome.wroteLink) {
+            FreshTagCompletions.recordLinked(uid)
             Haptics.success(activity)
         } else {
             Haptics.error(activity)
