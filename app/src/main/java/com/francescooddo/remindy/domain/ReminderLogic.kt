@@ -25,6 +25,9 @@ fun ReminderEntity.removeLogEntry(epochMillis: Long): Boolean {
     val index = log.indexOf(epochMillis)
     if (index == -1) return false
     log = log.toMutableList().also { it.removeAt(index) }
+    if (completedAt == epochMillis && epochMillis !in log) {
+        completedAt = null
+    }
     return true
 }
 
